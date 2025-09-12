@@ -63,8 +63,7 @@ class API:
                         try:
                             a,b = p.split("-",1)
                             a = int(a); b = int(b)
-                            if a > b:
-                                a,b = b,a
+                            if a > b: a,b = b,a
                             if (b - a) > 2000:
                                 return "❌ Range too large. Limit ranges to 2000 ports at most."
                             ports.update(range(a, b+1))
@@ -117,11 +116,11 @@ file_path = "index.html"
 if __name__ == '__main__':
     api = API()
     webview.create_window(
-        "Preefx Menu v1",
+        "NetworkMenu v2.0",
         file_path,
-        width=900,
-        height=700,
-        resizable=True,
+        width=800,
+        height=600,
+        resizable=False,
         js_api=api
     )
     webview.start()

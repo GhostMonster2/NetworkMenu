@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Preefx Menu</title>
+</head>
+<body>
+  <div class="mainpage">
+    <h2 class="maintitle">Preefx Menu</h2>
+    <p class="version">Version: <span>v1.0</span></p>
+
+    <div class="buttons">
+      <a href="#" onclick="runIpconfig()">IPConfig</a>
+      <a href="#" onclick="pingOption()">Ping</a>
+      <a href="#" onclick="showArp()">ARP Table</a>
+      <a href="#" onclick="showPortUI()">Port Scanner</a>
+    </div>
+
+    <div id="controls" class="controls">
+      <button id="clearBtn" onclick="clearOutput()">Clear</button>
+      <button onclick="copyOutput()">Copy</button>
+    </div>
+
+    <div id="portScanner" class="panel hidden">
+      <label>Target (IP or domain):</label>
+      <input id="portTarget" type="text" placeholder="e.g. 192.168.1.1 or example.com" />
+
+      <label>Ports (comma, ranges, or 'common'):</label>
+      <input id="portList" type="text" placeholder="e.g. 22,80,443 or 1-1024 or common" />
+
+      <div style="margin-top:6px;">
+        <button onclick="runPortScan()">Start Scan</button>
+        <button onclick="hidePortUI()">Close</button>
+      </div>
+    </div>
+
+    <pre id="status" class="terminal"></pre>
+  </div>
+
+  <style>
+    :root{
+      --bg: #25242a;
+      --green: #00ff00;
+      --muted: #7f7f7f;
+    }
+    html,body{
+      height:100%;
+      margin:0;
+      background:var(--bg);
+      font-family: 'Courier New', monospace;
+      color:var(--green);
+      overflow: hidden; /* prevent window scrolling */
+    }
+    .mainpage {
+      max-width:1100px;
+      margin:0 auto;
+      padding:18px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      height:100%;
+      box-sizing:border-box;
+    }
+    .maintitle { color:var(--green); font-size:2.6rem; margin:6px 0; }
+    .version { color:var(--muted); margin-bottom:8px; }
+
+    .buttons { display:flex; gap:10px; margin-top:8px; flex-wrap:wrap; }
+    .buttons a {
+      color:var(--green); text-decoration:none;
+      border:1px solid var(--green); padding:8px 12px; cursor:pointer;
+    }
+    .buttons a:hover { background:var(--green); color:var(--bg); }
+
+    .controls { margin-top:10px; display:flex; gap:8px; align-items:center; }
+    .controls button {
+      background:var(--bg); color:var(--green); border:1px solid var(--green);
+      padding:6px 10px; cursor:pointer;
+    }
+    .controls button:hover { background:var(--green); color:var(--bg); }
+
+    .panel { margin-top:12px; display:flex; flex-direction:column; gap:6px; width:90%; max-width:760px; align-items:flex-start; }
+    .panel label { color:var(--muted); font-size:0.9rem; }
+    .panel input { width:100%; padding:8px; background:#1b1b1b; border:1px solid #333; color:var(--green); }
+
+    .hidden { display:none; }
+
+    /* make terminal area fit inside window (no outer scroll) */
+    .terminal {
+      width:90%;
+      max-width:1050px;
+      margin-top:12px;
+      /* compute height so the whole page fits in the viewport */
+      height: calc(100vh - 260px);
+      min-height: 200px;
+      background:var(--bg);
+      color:var(--green);
+      padding:14px;
+      border:1px solid var(--green);
+      overflow-y:auto; /* internal scrolling only */
+      white-space:pre-wrap;
+      box-sizing:border-box;
+      user-select:text;
+    }
+
+    @media (max-width:700px){
+      .maintitle { font-size:1.8rem; }
+      .terminal { height: calc(100vh - 260px); width:96%; }
+    }
+  </style>
+
+  <script>
+    function setStatus(text){
+      const el = document.getElementById("status");
+      el.innerText = text;
+      el.scrollTop = el.scrollHeight;
+    }
+
+    function clearOutput(){
+      document.getElementById("status").innerText = "";
+    }
+
+    function copyOutput(){
+      const text = document.getElementById("status").innerText;
+      if (!text) return alert("Nothing to copy");
+      navigator.clipboard.writeText(text).then(()=> alert("Copied to clipboard"));
+    }
+
+    async function runIpconfig(){
+      setStatus("⏳ Running ipconfig...");
+      const res = await pywebview.api.run_ipconfig();
+      setStatus(res);
+    }
+
+    async function pingOption(){
+      let choice = prompt("Type '1' to ping EU Epic servers or enter a domain/IP, Type '2' to ping Retrac servers:");
+      let target;
+      if (choice > 0) {
+        if (choice === "1") {
+          target = "ping-eu.ds.on.epicgames.com";
+        }
+        if (choice === "2") {
+          target = "retrac.site";
+        }
+      } else if (choice) {
+        target = choice;
+      } else {
+        return
+      }
+      setStatus("⏳ Pinging " + target + " ...");
+      const res = await pywebview.api.run_ping(target);
+      setStatus(res);
+    }
+
+    async function showArp(){
+      setStatus("⏳ Getting ARP table...");
+      const res = await pywebview.api.run_arp();
+      setStatus(res);
+    }
+
+    function showPortUI(){
+      document.getElementById("portScanner").classList.remove("hidden");
+    }
+    function hidePortUI(){
+      document.getElementById("portScanner").classList.add("hidden");
+    }
+
+    async function runPortScan(){
+      const target = document.getElementById("portTarget").value.trim();
+      const ports = document.getElementById("portList").value.trim() || "common";
+      if (!target){
+        alert("Enter a target IP or hostname.");
+        return;
+      }
+      setStatus(`⏳ Scanning ${target} ...\n(Ports: ${ports})\nThis may take a few seconds...`);
+      try {
+        const res = await pywebview.api.run_port_scan(target, ports);
+        setStatus(res);
+      } catch (e){
+        setStatus("❌ Error: " + e);
+      }
+    }
+  </script>
+</body>
+</html>
